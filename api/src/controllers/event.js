@@ -286,9 +286,6 @@ router.put("/:id", passport.authenticate(["user", "admin"], { session: false }),
     if (!event) return res.status(404).send({ ok: false, code: ERROR_CODES.NOT_FOUND });
 
     // 📚 Security: Ownership check OR admin role
-    // .toString() because MongoDB IDs are ObjectId objects, not strings
-    // 403 = Forbidden (authenticated, but not authorized for THIS resource)
-    // Admins can update any event
     const isOwner = event.organizer_id.toString() === req.user._id.toString();
     const isAdmin = req.user.role === "admin";
 
@@ -298,52 +295,38 @@ router.put("/:id", passport.authenticate(["user", "admin"], { session: false }),
 
     const updates = { ...req.body };
 
-    if (updates.venue_id) {
-      const venue = await VenueObject.findById(updates.venue_id);
+    const venueIdToCheck = updates.venue_id || event.venue_id;
+    const newCapacity = updates.capacity ? updates.capacity : event.capacity;
+
+    const shouldValidateCapacity = updates.venue_id || (updates.capacity && updates.capacity !== event.capacity);
+
+    if (shouldValidateCapacity) {
+      const venue = await VenueObject.findById(venueIdToCheck);
       if (!venue) {
         return res.status(404).send({ ok: false, code: "VENUE_NOT_FOUND" });
       }
 
-      const capacityToCheck = updates.capacity || event.capacity;
-      if (venue.capacity !== 0 && capacityToCheck > venue.capacity) {
+      if (venue.capacity !== 0 && newCapacity > venue.capacity) {
         return res.status(400).send({
           ok: false,
           code: "CAPACITY_EXCEEDS_VENUE_CAPACITY",
-          message: `Event capacity (${capacityToCheck}) cannot exceed venue capacity (${venue.capacity})`,
+          message: `Event capacity (${newCapacity}) cannot exceed venue capacity (${venue.capacity})`,
         });
       }
 
-      updates.venue_name = venue.name;
-      updates.venue_address = venue.address;
-      updates.venue_city = venue.city;
-      updates.venue_country = venue.country;
-    }
-
-    if (updates.capacity !== undefined && updates.capacity !== event.capacity && !updates.venue_id) {
-      const venue = await VenueObject.findById(event.venue_id);
-      if (!venue) {
-        return res.status(404).send({ ok: false, code: "VENUE_NOT_FOUND" });
-      }
-
-      if (venue.capacity !== 0 && updates.capacity > venue.capacity) {
-        return res.status(400).send({
-          ok: false,
-          code: "CAPACITY_EXCEEDS_VENUE_CAPACITY",
-          message: `Event capacity (${updates.capacity}) cannot exceed venue capacity (${venue.capacity})`,
-        });
+      if (updates.venue_id) {
+        updates.venue_name = venue.name;
+        updates.venue_address = venue.address;
+        updates.venue_city = venue.city;
+        updates.venue_country = venue.country;
       }
     }
 
-    // 📚 Business logic: Recalculate available spots when capacity changes
-    // If event had 100 capacity, 30 booked (70 available)
-    // And we change capacity to 80
-    // Then available = 80 - 30 = 50
-    if (updates.capacity !== undefined && updates.capacity !== event.capacity) {
+    if (updates.capacity && updates.capacity !== event.capacity) {
       const bookedSpots = event.capacity - event.available_spots;
       updates.available_spots = updates.capacity - bookedSpots;
     }
 
-    // 📚 .set() updates the document, .save() persists to DB
     event.set(updates);
     await event.save();
 

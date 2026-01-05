@@ -303,17 +303,42 @@ router.put("/:id", passport.authenticate(["user", "admin"], { session: false }),
       if (!venue) {
         return res.status(404).send({ ok: false, code: "VENUE_NOT_FOUND" });
       }
+
+      const capacityToCheck = updates.capacity || event.capacity;
+      if (venue.capacity !== 0 && capacityToCheck > venue.capacity) {
+        return res.status(400).send({
+          ok: false,
+          code: "CAPACITY_EXCEEDS_VENUE_CAPACITY",
+          message: `Event capacity (${capacityToCheck}) cannot exceed venue capacity (${venue.capacity})`,
+        });
+      }
+
       updates.venue_name = venue.name;
       updates.venue_address = venue.address;
       updates.venue_city = venue.city;
       updates.venue_country = venue.country;
     }
 
+    if (updates.capacity !== undefined && updates.capacity !== event.capacity && !updates.venue_id) {
+      const venue = await VenueObject.findById(event.venue_id);
+      if (!venue) {
+        return res.status(404).send({ ok: false, code: "VENUE_NOT_FOUND" });
+      }
+
+      if (venue.capacity !== 0 && updates.capacity > venue.capacity) {
+        return res.status(400).send({
+          ok: false,
+          code: "CAPACITY_EXCEEDS_VENUE_CAPACITY",
+          message: `Event capacity (${updates.capacity}) cannot exceed venue capacity (${venue.capacity})`,
+        });
+      }
+    }
+
     // 📚 Business logic: Recalculate available spots when capacity changes
     // If event had 100 capacity, 30 booked (70 available)
     // And we change capacity to 80
     // Then available = 80 - 30 = 50
-    if (updates.capacity && updates.capacity !== event.capacity) {
+    if (updates.capacity !== undefined && updates.capacity !== event.capacity) {
       const bookedSpots = event.capacity - event.available_spots;
       updates.available_spots = updates.capacity - bookedSpots;
     }

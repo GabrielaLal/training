@@ -35,7 +35,6 @@ export default function CreateVenueModal({ isOpen, onClose }) {
       
       toast.success("Venue created! Add more details to complete it.")
       onClose()
-      // Redirect to edit page
       navigate(`/venue/${data._id}/edit`)
     } catch (error) {
       toast.error(error.message || "Failed to create venue")

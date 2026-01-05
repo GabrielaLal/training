@@ -253,9 +253,9 @@ export default function EditTab({ event, fetchEvent }) {
                   </option>
                 ))}
               </select>
-              {event && event.venue_id && (
+              {event && event.venue_name && (
                 <p className="mt-2 text-sm text-gray-600">
-                  Current: {event.venue_id.name} - {event.venue_id.address}, {event.venue_id.city}, {event.venue_id.country}
+                  Current: {event.venue_name} - {event.venue_address}, {event.venue_city}, {event.venue_country}
                 </p>
               )}
             </div>

@@ -3,6 +3,7 @@ const passport = require("passport");
 const router = express.Router();
 
 const VenueObject = require("../models/venue");
+const EventObject = require("../models/event");
 const ERROR_CODES = require("../utils/errorCodes");
 const { capture } = require("../services/sentry");
 
@@ -152,6 +153,20 @@ router.put("/:id", passport.authenticate(["user", "admin"], { session: false }),
 
     venue.set(updates);
     await venue.save();
+
+    const now = new Date();
+    await EventObject.updateMany(
+      { 
+        venue_id: venue._id,
+        start_date: { $gte: now }
+      },
+      {
+        venue_name: venue.name,
+        venue_address: venue.address,
+        venue_city: venue.city,
+        venue_country: venue.country,
+      }
+    );
 
     res.status(200).send({ ok: true, data: venue });
   } catch (error) {

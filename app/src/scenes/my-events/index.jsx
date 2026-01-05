@@ -189,7 +189,7 @@ function EventRow({ event, onDelete }) {
             </div>
             <div>
               <span className="font-medium text-gray-700">Location:</span>
-              <p>{event.venue_id ? `${event.venue_id.name}, ${event.venue_id.city}` : "Not specified"}</p>
+              <p>{event.venue_name ? `${event.venue_name}, ${event.venue_city}` : "Not specified"}</p>
             </div>
             <div>
               <span className="font-medium text-gray-700">Capacity:</span>

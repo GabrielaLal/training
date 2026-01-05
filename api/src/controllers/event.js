@@ -66,11 +66,8 @@ router.post("/search", async (req, res) => {
 
     if (category) query.category = category;
 
-    // For city search, we need to search in the venue relation
     if (city) {
-      const venues = await VenueObject.find({ city: { $regex: city, $options: "i" } }).select("_id");
-      const venueIds = venues.map((v) => v._id);
-      query.venue_id = { $in: venueIds };
+      query.venue_city = { $regex: city, $options: "i" };
     }
 
     // 📚 Pagination pattern
@@ -82,9 +79,7 @@ router.post("/search", async (req, res) => {
     // 📚 Query execution
     // .skip() and .limit() for pagination
     // .sort() for ordering (1 = ascending, -1 = descending)
-    // .populate() to include venue data
     const data = await EventObject.find(query)
-      .populate("venue_id", "name address city country")
       .skip(offset)
       .limit(limit)
       .sort(sort || { start_date: 1 });
@@ -119,7 +114,7 @@ router.post("/search", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     // 📚 req.params.id comes from the URL: /event/123abc -> params.id = "123abc"
-    const data = await EventObject.findById(req.params.id).populate("venue_id", "name address city country");
+    const data = await EventObject.findById(req.params.id);
 
     // 📚 404 = Not Found (resource doesn't exist)
     if (!data) return res.status(404).send({ ok: false, code: ERROR_CODES.NOT_FOUND });
@@ -174,7 +169,6 @@ router.post("/", passport.authenticate("user", { session: false }), async (req, 
       return res.status(400).send({ ok: false, code: "TITLE_START_DATE_AND_VENUE_REQUIRED" });
     }
 
-    // 📚 Fetch venue and populate location fields
     const venue = await VenueObject.findById(venue_id);
     if (!venue) {
       return res.status(404).send({ ok: false, code: "VENUE_NOT_FOUND" });
@@ -189,6 +183,10 @@ router.post("/", passport.authenticate("user", { session: false }), async (req, 
       start_date,
       end_date,
       venue_id: venue._id,
+      venue_name: venue.name,
+      venue_address: venue.address,
+      venue_city: venue.city,
+      venue_country: venue.country,
       capacity,
       available_spots: capacity || 0, // Initially, all spots are available
       price,
@@ -254,8 +252,8 @@ router.post("/my-events/search", passport.authenticate(["user", "admin"], { sess
     const limit = per_page || 10;
     const offset = page ? (page - 1) * limit : 0;
 
+    // Venue details are stored directly in event (denormalized)
     const data = await EventObject.find(query)
-      .populate("venue_id", "name address city country")
       .skip(offset)
       .limit(limit)
       .sort(sort || { created_at: -1 });
@@ -300,12 +298,15 @@ router.put("/:id", passport.authenticate(["user", "admin"], { session: false }),
 
     const updates = { ...req.body };
 
-    // 📚 If venue_id is being updated, validate venue exists
     if (updates.venue_id) {
       const venue = await VenueObject.findById(updates.venue_id);
       if (!venue) {
         return res.status(404).send({ ok: false, code: "VENUE_NOT_FOUND" });
       }
+      updates.venue_name = venue.name;
+      updates.venue_address = venue.address;
+      updates.venue_city = venue.city;
+      updates.venue_country = venue.country;
     }
 
     // 📚 Business logic: Recalculate available spots when capacity changes

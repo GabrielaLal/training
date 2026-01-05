@@ -296,7 +296,7 @@ router.put("/:id", passport.authenticate(["user", "admin"], { session: false }),
     const updates = { ...req.body };
 
     const venueIdToCheck = updates.venue_id || event.venue_id;
-    const newCapacity = updates.capacity ? updates.capacity : event.capacity;
+    const newCapacity = updates.capacity || event.capacity;
 
     const shouldValidateCapacity = updates.venue_id || (updates.capacity && updates.capacity !== event.capacity);
 

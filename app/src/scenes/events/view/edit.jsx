@@ -7,15 +7,13 @@ export default function EditTab({ event, fetchEvent }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const [saving, setSaving] = useState(false)
+  const [venues, setVenues] = useState([])
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     start_date: "",
     end_date: "",
-    venue: "",
-    address: "",
-    city: "",
-    country: "France",
+    venue_id: "",
     capacity: 0,
     price: 0,
     currency: "EUR",
@@ -24,16 +22,31 @@ export default function EditTab({ event, fetchEvent }) {
   })
 
   useEffect(() => {
+    fetchVenues()
+  }, [])
+
+  const fetchVenues = async () => {
+    try {
+      const { ok, data } = await api.post("/venue/search", {
+        per_page: 100,
+        page: 1
+      })
+      if (ok) {
+        setVenues(data || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch venues", error)
+    }
+  }
+
+  useEffect(() => {
     if (event) {
       setFormData({
         title: event.title || "",
         description: event.description || "",
         start_date: event.start_date ? new Date(event.start_date).toISOString().slice(0, 16) : "",
         end_date: event.end_date ? new Date(event.end_date).toISOString().slice(0, 16) : "",
-        venue: event.venue || "",
-        address: event.address || "",
-        city: event.city || "",
-        country: event.country || "France",
+        venue_id: event.venue_id?._id || event.venue_id || "",
         capacity: event.capacity || 0,
         price: event.price || 0,
         currency: event.currency || "EUR",
@@ -51,8 +64,8 @@ export default function EditTab({ event, fetchEvent }) {
   const handleSubmit = async e => {
     e.preventDefault()
 
-    if (!formData.title || !formData.start_date) {
-      toast.error("Title and start date are required")
+    if (!formData.title || !formData.start_date || !formData.venue_id) {
+      toast.error("Title, start date, and venue are required")
       return
     }
 
@@ -223,52 +236,28 @@ export default function EditTab({ event, fetchEvent }) {
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Venue Name</label>
-              <input
-                type="text"
-                name="venue"
-                value={formData.venue}
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Venue <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="venue_id"
+                required
+                value={formData.venue_id}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="e.g., Convention Center"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-              <input
-                type="text"
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="e.g., 123 Main Street"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                <input
-                  type="text"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="e.g., Paris"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-                <input
-                  type="text"
-                  name="country"
-                  value={formData.country}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
+              >
+                <option value="">Select a venue</option>
+                {venues.map(venue => (
+                  <option key={venue._id} value={venue._id}>
+                    {venue.name} - {venue.address}, {venue.city}, {venue.country}
+                  </option>
+                ))}
+              </select>
+              {event && event.venue_id && (
+                <p className="mt-2 text-sm text-gray-600">
+                  Current: {event.venue_id.name} - {event.venue_id.address}, {event.venue_id.city}, {event.venue_id.country}
+                </p>
+              )}
             </div>
           </div>
         </div>

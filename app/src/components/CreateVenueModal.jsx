@@ -1,37 +1,17 @@
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import api from "@/services/api"
 import toast from "react-hot-toast"
 
-export default function CreateEventModal({ isOpen, onClose }) {
+export default function CreateVenueModal({ isOpen, onClose }) {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
-  const [venues, setVenues] = useState([])
   const [formData, setFormData] = useState({
-    title: "",
-    start_date: "",
-    venue_id: "",
+    name: "",
+    address: "",
+    city: "",
+    country: "",
   })
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchVenues()
-    }
-  }, [isOpen])
-
-  const fetchVenues = async () => {
-    try {
-      const { ok, data } = await api.post("/venue/search", {
-        per_page: 100,
-        page: 1
-      })
-      if (ok) {
-        setVenues(data || [])
-      }
-    } catch (error) {
-      console.error("Failed to fetch venues", error)
-    }
-  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -41,25 +21,24 @@ export default function CreateEventModal({ isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    if (!formData.title || !formData.start_date || !formData.venue_id) {
-      toast.error("Title, start date, and venue are required")
+    if (!formData.name || !formData.address || !formData.city || !formData.country) {
+      toast.error("Name, address, city, and country are required")
       return
     }
 
     try {
       setLoading(true)
-      const { ok, data } = await api.post("/event", {
+      const { ok, data } = await api.post("/venue", {
         ...formData,
-        status: "draft", // Always create as draft
       })
-      if (!ok) throw new Error("Failed to create event")
+      if (!ok) throw new Error("Failed to create venue")
       
-      toast.success("Event created! Add more details to publish it.")
+      toast.success("Venue created! Add more details to complete it.")
       onClose()
       // Redirect to edit page
-      navigate(`/event/${data._id}/edit`)
+      navigate(`/venue/${data._id}/edit`)
     } catch (error) {
-      toast.error(error.message || "Failed to create event")
+      toast.error(error.message || "Failed to create venue")
       console.error(error)
     } finally {
       setLoading(false)
@@ -71,80 +50,86 @@ export default function CreateEventModal({ isOpen, onClose }) {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        {/* Background overlay */}
-        <div 
+        <div
           className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" 
           onClick={onClose}
         />
 
-        {/* Modal panel */}
         <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <form onSubmit={handleSubmit}>
             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="sm:flex sm:items-start">
                 <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
                   <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                    Create New Event
+                    Create New Venue
                   </h3>
                   <p className="text-sm text-gray-600 mb-4">
                     Start with the basics. You'll add full details on the next page.
                   </p>
 
-                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-                    <strong>Two-step creation:</strong> Modal (required fields only) → Edit page (full details + publish)
-                  </div>
-
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Event Title <span className="text-red-500">*</span>
+                        Venue Name <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
-                        name="title"
+                        name="name"
                         required
                         autoFocus
-                        value={formData.title}
+                        value={formData.name}
                         onChange={handleChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="e.g., Annual Tech Conference 2025"
+                        placeholder="e.g., Grand Convention Center"
                       />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Start Date & Time <span className="text-red-500">*</span>
+                        Address <span className="text-red-500">*</span>
                       </label>
                       <input
-                        type="datetime-local"
-                        name="start_date"
+                        type="text"
+                        name="address"
                         required
-                        value={formData.start_date}
+                        value={formData.address}
                         onChange={handleChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="e.g., 123 Main Street"
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Venue <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        name="venue_id"
-                        required
-                        value={formData.venue_id}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      >
-                        <option value="">Select a venue</option>
-                        {venues.map(venue => (
-                          <option key={venue._id} value={venue._id}>
-                            {venue.name} - {venue.city}, {venue.country}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          City <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="city"
+                          required
+                          value={formData.city}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          placeholder="e.g., Paris"
+                        />
+                      </div>
 
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Country <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="country"
+                          required
+                          value={formData.country}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          placeholder="e.g., France"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

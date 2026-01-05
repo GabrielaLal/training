@@ -5,6 +5,7 @@ const { MONGODB_ENDPOINT } = require("../config");
 const UserObject = require("../models/user");
 const AdminObject = require("../models/admin");
 const EventObject = require("../models/event");
+const VenueObject = require("../models/venue");
 
 async function seed() {
   try {
@@ -18,6 +19,7 @@ async function seed() {
     await UserObject.deleteMany({});
     await AdminObject.deleteMany({});
     await EventObject.deleteMany({});
+    await VenueObject.deleteMany({});
     console.log("🗑️  Cleared existing data");
 
     // Create test users
@@ -52,6 +54,56 @@ async function seed() {
     });
     console.log("✅ Created admin user");
 
+    // Create sample venues
+    const venues = await VenueObject.create([
+      {
+        name: "Convention Center",
+        address: "123 Main Street",
+        city: "Paris",
+        country: "France",
+        capacity: 500,
+        amenities: ["WiFi", "Parking", "Catering", "AV Equipment"],
+        owner_id: users[0]._id,
+      },
+      {
+        name: "Tech Hub",
+        address: "456 Innovation Ave",
+        city: "Lyon",
+        country: "France",
+        capacity: 30,
+        amenities: ["WiFi", "Projector", "Whiteboard"],
+        owner_id: users[1]._id,
+      },
+      {
+        name: "The Hub",
+        address: "789 Startup Lane",
+        city: "Marseille",
+        country: "France",
+        capacity: 100,
+        amenities: ["WiFi", "Bar", "Networking Space"],
+        owner_id: users[0]._id,
+      },
+      {
+        name: "University Auditorium",
+        address: "321 Academic Way",
+        city: "Toulouse",
+        country: "France",
+        capacity: 200,
+        amenities: ["WiFi", "Projector", "Sound System", "Seating"],
+        owner_id: users[2]._id,
+      },
+      {
+        name: "Community Center",
+        address: "555 Community Drive",
+        city: "Paris",
+        country: "France",
+        capacity: 50,
+        amenities: ["WiFi", "Kitchen", "Tables"],
+        owner_id: users[1]._id,
+      },
+    ]);
+    console.log(`✅ Created ${venues.length} venues`);
+
     // Create sample events
     const events = await EventObject.create([
       {
@@ -59,10 +111,7 @@ async function seed() {
         description: "Annual technology conference featuring the latest innovations in AI, Web3, and Cloud Computing.",
         start_date: new Date("2026-03-15T09:00:00"),
         end_date: new Date("2026-03-15T18:00:00"),
-        venue: "Convention Center",
-        address: "123 Main Street",
-        city: "Paris",
-        country: "France",
+        venue_id: venues[0]._id,
         capacity: 500,
         available_spots: 500,
         price: 0,
@@ -79,10 +128,7 @@ async function seed() {
         description: "Hands-on workshop covering modern JavaScript frameworks including React, Vue, and Next.js.",
         start_date: new Date("2026-02-20T14:00:00"),
         end_date: new Date("2026-02-20T17:00:00"),
-        venue: "Tech Hub",
-        address: "456 Innovation Ave",
-        city: "Lyon",
-        country: "France",
+        venue_id: venues[1]._id,
         capacity: 30,
         available_spots: 30,
         price: 49.99,
@@ -96,13 +142,11 @@ async function seed() {
       },
       {
         title: "Startup Networking Night",
-        description: "Meet fellow entrepreneurs, investors, and startup enthusiasts in a casual networking environment.",
+        description:
+          "Meet fellow entrepreneurs, investors, and startup enthusiasts in a casual networking environment.",
         start_date: new Date("2026-02-01T19:00:00"),
         end_date: new Date("2026-02-01T22:00:00"),
-        venue: "The Hub",
-        address: "789 Startup Lane",
-        city: "Marseille",
-        country: "France",
+        venue_id: venues[2]._id,
         capacity: 100,
         available_spots: 100,
         price: 0,
@@ -118,10 +162,7 @@ async function seed() {
         description: "Expert-led seminar on the latest developments in artificial intelligence and machine learning.",
         start_date: new Date("2026-04-10T10:00:00"),
         end_date: new Date("2026-04-10T16:00:00"),
-        venue: "University Auditorium",
-        address: "321 Academic Way",
-        city: "Toulouse",
-        country: "France",
+        venue_id: venues[3]._id,
         capacity: 200,
         available_spots: 200,
         price: 29.99,
@@ -137,9 +178,7 @@ async function seed() {
         title: "Draft Event - Not Published",
         description: "This event is still in draft mode and won't appear in public listings.",
         start_date: new Date("2026-05-01T10:00:00"),
-        venue: "TBD",
-        city: "Paris",
-        country: "France",
+        venue_id: venues[4]._id,
         capacity: 50,
         available_spots: 50,
         price: 0,
@@ -155,9 +194,7 @@ async function seed() {
         title: "Test Event not-good data quality",
         description: "This event has bad data and should be cleaned up.",
         start_date: new Date("2026-03-20T10:00:00"),
-        venue: "Test Venue",
-        city: "Paris",
-        country: "France",
+        venue_id: venues[0]._id,
         capacity: 10,
         available_spots: 10,
         price: 0,
@@ -172,9 +209,7 @@ async function seed() {
         title: "not-good Spam Event Here",
         description: "Another low-quality event that needs cleanup.",
         start_date: new Date("2026-04-15T14:00:00"),
-        venue: "Spam Location",
-        city: "Lyon",
-        country: "France",
+        venue_id: venues[1]._id,
         capacity: 5,
         available_spots: 5,
         price: 0,
@@ -189,9 +224,7 @@ async function seed() {
         title: "Workshop with not-good title format",
         description: "This workshop title doesn't follow our standards.",
         start_date: new Date("2026-05-05T09:00:00"),
-        venue: "Random Place",
-        city: "Marseille",
-        country: "France",
+        venue_id: venues[2]._id,
         capacity: 20,
         available_spots: 20,
         price: 10,
@@ -220,4 +253,3 @@ async function seed() {
 }
 
 seed();
-

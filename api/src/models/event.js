@@ -12,11 +12,8 @@ const Schema = new mongoose.Schema(
     start_date: { type: Date, required: true },
     end_date: { type: Date },
     
-    // Location
-    venue: { type: String, trim: true },
-    address: { type: String, trim: true },
-    city: { type: String, trim: true },
-    country: { type: String, trim: true },
+    // Location - venue reference
+    venue_id: { type: mongoose.Schema.Types.ObjectId, ref: "venue", required: true },
     
     // Capacity
     capacity: { type: Number, default: 0 },

@@ -35,9 +35,16 @@ export default function OverviewTab({ event }) {
           <div>
             <div className="text-sm font-medium text-gray-500">Location</div>
             <div className="text-sm text-gray-900 mt-1">
-              {event.venue && `${event.venue}, `}
-              {event.city}
-              {event.country && `, ${event.country}`}
+              {event.venue_id ? (
+                <>
+                  {event.venue_id.name}
+                  {event.venue_id.address && `, ${event.venue_id.address}`}
+                  {event.venue_id.city && `, ${event.venue_id.city}`}
+                  {event.venue_id.country && `, ${event.venue_id.country}`}
+                </>
+              ) : (
+                "Not specified"
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">

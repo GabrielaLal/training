@@ -192,11 +192,11 @@ function EventCard({ event }) {
             </span>
           </div>
 
-          {event.venue && (
+          {event.venue_id && (
             <div className="flex items-center">
               <AiOutlineEnvironment className="w-4 h-4 mr-2" />
               <span className="line-clamp-1">
-                {event.venue}, {event.city}
+                {event.venue_id.name}, {event.venue_id.city}
               </span>
             </div>
           )}

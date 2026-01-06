@@ -6,6 +6,7 @@ const EventObject = require("../models/event");
 const VenueObject = require("../models/venue");
 const ERROR_CODES = require("../utils/errorCodes");
 const { capture } = require("../services/sentry");
+const googleCalendar = require("../services/googleCalendar");
 
 /**
  * 📚 LEARNING NOTE: Controller Organization & Role-Based Access
@@ -201,6 +202,12 @@ router.post("/", passport.authenticate("user", { session: false }), async (req, 
       organizer_email: req.user.email, // Denormalized for faster queries
     });
 
+    if (event.status === "published") {
+      googleCalendar.exportEvent(event._id).catch((serviceError) => {
+        capture(serviceError);
+      });
+    }
+
     return res.status(200).send({ ok: true, data: event });
   } catch (error) {
     capture(error);
@@ -329,6 +336,18 @@ router.put("/:id", passport.authenticate(["user", "admin"], { session: false }),
     event.set(updates);
     await event.save();
 
+    if (updates.status === "published" || (event.status === "published" && !updates.status)) {
+      googleCalendar.exportEvent(event._id).catch((serviceError) => {
+        console.error("[event] Failed to sync with Google Calendar:", serviceError);
+        capture(serviceError);
+      });
+    } else if (updates.status && updates.status !== "published" && event.google_calendar_id) {
+      googleCalendar.deleteEvent(event._id).catch((serviceError) => {
+        console.error("[event] Failed to delete from Google Calendar:", serviceError);
+        capture(serviceError);
+      });
+    }
+
     res.status(200).send({ ok: true, data: event });
   } catch (error) {
     capture(error);
@@ -352,6 +371,13 @@ router.delete("/:id", passport.authenticate(["user", "admin"], { session: false 
 
     if (!isOwner && !isAdmin) {
       return res.status(403).send({ ok: false, code: "FORBIDDEN" });
+    }
+
+    if (event.google_calendar_id) {
+      googleCalendar.deleteEvent(event._id).catch((serviceError) => {
+        console.error("[event] Failed to delete from Google Calendar:", serviceError);
+        capture(serviceError);
+      });
     }
 
     await EventObject.findByIdAndDelete(req.params.id);

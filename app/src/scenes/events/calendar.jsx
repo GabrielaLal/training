@@ -1,40 +1,202 @@
-import React from "react"
-import { AiOutlineCalendar } from "react-icons/ai"
+import React, { useEffect, useMemo, useState } from "react"
+import { AiOutlineCalendar, AiOutlineLeft, AiOutlineRight } from "react-icons/ai"
+import { useNavigate } from "react-router-dom"
+import toast from "react-hot-toast"
+
+import api from "@/services/api"
+import useStore from "@/services/store"
+
+const categoryColors = {
+  conference: "bg-blue-600",
+  workshop: "bg-cyan-500",
+  seminar: "bg-green-500",
+  networking: "bg-amber-500",
+  social: "bg-pink-500",
+  other: "bg-purple-500"
+}
+
+const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+const weekdayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
 export default function CalendarView() {
+  const navigate = useNavigate()
+  const { user } = useStore()
+
+  const [events, setEvents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date()
+    return { year: now.getFullYear(), month: now.getMonth() }
+  })
+
+  useEffect(() => {
+    fetchEvents()
+  }, [])
+
+  const fetchEvents = async () => {
+    try {
+      setLoading(true)
+      const { ok, data } = await api.post("/event/search", {
+        per_page: 200,
+        page: 1,
+        sort: { start_date: 1 }
+      })
+      if (!ok) throw new Error("Failed to load events")
+      setEvents(data || [])
+    } catch (error) {
+      toast.error("Could not load events")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const eventsByDate = useMemo(() => {
+    const map = {}
+    events.forEach(event => {
+      const dateKey = new Date(event.start_date).toISOString().slice(0, 10)
+      const organizerId = typeof event.organizer_id === "object" ? event.organizer_id?._id : event.organizer_id
+      const isMine = Boolean(user && organizerId && organizerId.toString() === user._id)
+      map[dateKey] = map[dateKey] || []
+      map[dateKey].push({ ...event, isMine })
+    })
+    return map
+  }, [events, user])
+
+  const days = useMemo(() => {
+    const { year, month } = currentMonth
+    const firstDay = new Date(year, month, 1)
+    const startWeekday = firstDay.getDay()
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+    const totalCells = 42
+    const grid = []
+
+    for (let i = 0; i < totalCells; i++) {
+      const dayNumber = i - startWeekday + 1
+      const date = new Date(year, month, dayNumber)
+      const inCurrentMonth = dayNumber >= 1 && dayNumber <= daysInMonth
+      const key = date.toISOString().slice(0, 10)
+      grid.push({
+        key,
+        date,
+        inCurrentMonth,
+        isToday: isSameDate(date, new Date()),
+        events: eventsByDate[key] || []
+      })
+    }
+    return grid
+  }, [currentMonth, eventsByDate])
+
+  const goToMonth = delta => {
+    setCurrentMonth(prev => {
+      const nextDate = new Date(prev.year, prev.month + delta, 1)
+      return { year: nextDate.getFullYear(), month: nextDate.getMonth() }
+    })
+  }
+
+  const handleEventClick = eventId => {
+    navigate(`/event/${eventId}`)
+  }
+
   return (
     <div>
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Calendar View</h1>
-        <p className="text-sm text-gray-600">Visual calendar display of events</p>
-      </div>
-
-      {/* Week 2 Notice */}
-      <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-6 mb-6">
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0">
-            <svg className="w-6 h-6 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                clipRule="evenodd"
-              />
-            </svg>
+      <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Calendar View</h1>
+          <p className="text-sm text-gray-600">Monthly grid with your events. Click a tile to open the event.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={() => goToMonth(-1)} className="h-9 w-9 rounded-full border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center">
+            <AiOutlineLeft className="h-5 w-5 text-gray-700" />
+          </button>
+          <div className="text-sm font-medium text-gray-900">
+            {monthNames[currentMonth.month]} {currentMonth.year}
           </div>
-          <div>
-            <h3 className="text-sm font-semibold text-amber-900 mb-2">Week 2 Feature</h3>
-            <p className="text-sm text-amber-800">Calendar view will be implemented in Week 2. Focus on the List View and Event Detail pages for Week 1.</p>
-          </div>
+          <button onClick={() => goToMonth(1)} className="h-9 w-9 rounded-full border border-gray-200 bg-white hover:bg-gray-50 flex items-center justify-center">
+            <AiOutlineRight className="h-5 w-5 text-gray-700" />
+          </button>
         </div>
       </div>
 
-      {/* Empty State */}
-      <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-        <AiOutlineCalendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Coming in Week 2</h3>
-        <p className="text-sm text-gray-600">This view will be built during Week 2 training</p>
-      </div>
+      {loading ? (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-6 bg-gray-200 rounded w-1/3"></div>
+            <div className="grid grid-cols-7 gap-3">
+              {[...Array(14)].map((_, idx) => (
+                <div key={idx} className="h-24 bg-gray-100 rounded" />
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : events.length === 0 ? (
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center bg-white shadow">
+          <AiOutlineCalendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No upcoming events</h3>
+          <p className="text-sm text-gray-600">Publish an event to see it on the calendar.</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="grid grid-cols-7 text-xs font-semibold text-gray-500 border-b border-gray-200">
+            {weekdayNames.map(day => (
+              <div key={day} className="px-4 py-3 uppercase tracking-wide text-center">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-px bg-gray-200">
+            {days.map(day => (
+              <div
+                key={day.key}
+                className={`bg-white min-h-[120px] p-2 flex flex-col gap-2 ${!day.inCurrentMonth ? "text-gray-300 bg-gray-50" : ""} ${day.isToday ? "border-2 border-blue-400" : ""}`}
+              >
+                <div className="flex items-center justify-between text-xs font-semibold text-gray-700">
+                  <span>{day.date.getDate()}</span>
+                  {!day.inCurrentMonth && <span className="text-[10px] text-gray-400">•</span>}
+                </div>
+
+                <div className="space-y-1">
+                  {day.events.slice(0, 3).map(event => {
+                    const colorClass = categoryColors[event.category] || categoryColors.other
+                    return (
+                      <button key={event._id} onClick={() => handleEventClick(event._id)} className="w-full text-left" title={event.title}>
+                        <div className={`rounded px-2 py-1 text-[11px] text-white leading-tight ${colorClass}`}>
+                          <div className="flex items-center justify-between gap-1">
+                            <p className="font-semibold truncate">{event.title}</p>
+                            {event.isMine && <span className="shrink-0 rounded-full bg-white/20 px-1.5 py-[1px] text-[9px] font-semibold uppercase tracking-wide">My event</span>}
+                          </div>
+                          {event.venue_name && <p className="truncate opacity-90">{event.venue_name}</p>}
+                        </div>
+                      </button>
+                    )
+                  })}
+                  {day.events.length > 3 && <div className="text-[11px] text-gray-500">+ {day.events.length - 3} more</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-gray-200 px-6 py-4 grid gap-3 md:grid-cols-3 bg-gray-50">
+            {Object.entries(categoryColors).map(([key, colorClass]) => (
+              <LegendItem key={key} colorClass={colorClass} label={key.charAt(0).toUpperCase() + key.slice(1)} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
+}
+
+function LegendItem({ colorClass, label }) {
+  return (
+    <div className="flex items-center gap-2 text-sm text-gray-700">
+      <span className={`w-3 h-3 rounded-sm ${colorClass}`} />
+      <span>{label}</span>
+    </div>
+  )
+}
+
+function isSameDate(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }

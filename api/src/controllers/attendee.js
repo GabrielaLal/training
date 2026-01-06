@@ -72,7 +72,7 @@ router.post("/register", passport.authenticate("user", { session: false }), asyn
       await event.save();
     }
 
-    return res.status(201).send({ ok: true, data: attendee });
+    return res.status(200).send({ ok: true, data: attendee });
   } catch (error) {
     if (error.code === 11000) {
       return res.status(400).send({ ok: false, code: "ALREADY_REGISTERED" });

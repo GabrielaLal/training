@@ -7,12 +7,11 @@ const EventObject = require("../models/event");
 
 router.post("/calendar-sync", async (req, res) => {
   try {
-    if (GOOGLE_WEBHOOK_SECRET) {
-      const providedSecret = req.query.secret || req.headers["x-webhook-secret"];
-      if (providedSecret !== GOOGLE_WEBHOOK_SECRET) {
-        console.warn("[webhook] Invalid webhook secret");
-        return res.status(401).send({ ok: false, code: "INVALID_WEBHOOK_SECRET" });
-      }
+    const providedSecret = req.query.secret || req.headers["x-webhook-secret"];
+
+    if (GOOGLE_WEBHOOK_SECRET || providedSecret !== GOOGLE_WEBHOOK_SECRET) {
+      console.warn("[webhook] Invalid webhook secret");
+      return res.status(401).send({ ok: false, code: "INVALID_WEBHOOK_SECRET" });
     }
 
     const resourceState = req.headers["x-goog-resource-state"];

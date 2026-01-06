@@ -1,121 +1,175 @@
 const fetch = require("node-fetch");
-const EventObject = require("../models/event");
-const { GOOGLE_CALENDAR_ACCESS_TOKEN, GOOGLE_CALENDAR_CALENDAR_ID } = require("../config");
+const {
+    GOOGLE_CALENDAR_CLIENT_ID,
+    GOOGLE_CALENDAR_CLIENT_SECRET,
+    GOOGLE_CALENDAR_REFRESH_TOKEN,
+    GOOGLE_CALENDAR_CALENDAR_ID
+} = require("../config");
 
-async function exportEvent(eventId) {
-  try {
-    if (!GOOGLE_CALENDAR_ACCESS_TOKEN || !GOOGLE_CALENDAR_CALENDAR_ID) {
-      console.warn("[googleCalendar] Google Calendar not configured, skipping export");
-      return { success: false, reason: "not_configured" };
+let cachedAccessToken = null;
+let tokenExpiryTime = null;
+
+async function getValidAccessToken() {
+    if (cachedAccessToken && tokenExpiryTime && Date.now() < tokenExpiryTime - 300000) {
+        return cachedAccessToken;
+    }
+    if (!GOOGLE_CALENDAR_CLIENT_ID || !GOOGLE_CALENDAR_CLIENT_SECRET || !GOOGLE_CALENDAR_REFRESH_TOKEN) {
+        throw new Error("Missing Google Calendar OAuth credentials");
     }
 
-    const event = await EventObject.findById(eventId);
-    if (!event) {
-      console.warn(`[googleCalendar] Event not found for id=${eventId}`);
-      return { success: false, reason: "event_not_found" };
-    }
-
-    if (event.status !== "published") {
-      return { success: false, reason: "not_published" };
-    }
-
-    const googleEventPayload = {
-      summary: event.title,
-      description: event.description || "",
-      location: [event.venue_address, event.venue_city, event.venue_country].filter(Boolean).join(", "),
-      start: {
-        dateTime: event.start_date.toISOString(),
-        timeZone: "UTC",
-      },
-      end: {
-        dateTime: (event.end_date || event.start_date).toISOString(),
-        timeZone: "UTC",
-      },
-    };
-
-    const calendarId = encodeURIComponent(GOOGLE_CALENDAR_CALENDAR_ID);
-    let url;
-    let method;
-
-    // If event already has a Google Calendar ID, update it; otherwise create new
-    if (event.google_calendar_id) {
-      url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(
-        event.google_calendar_id,
-      )}`;
-      method = "PUT";
-    } else {
-      url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`;
-      method = "POST";
-    }
-
-    const response = await fetch(url, {
-      method,
-      headers: {
-        Authorization: `Bearer ${GOOGLE_CALENDAR_ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(googleEventPayload),
+    const response = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+            client_id: GOOGLE_CALENDAR_CLIENT_ID,
+            client_secret: GOOGLE_CALENDAR_CLIENT_SECRET,
+            refresh_token: GOOGLE_CALENDAR_REFRESH_TOKEN,
+            grant_type: "refresh_token",
+        }),
     });
 
     if (!response.ok) {
-      return { success: false, reason: "api_error", status: response.status };
+        throw new Error("Failed to refresh Google Calendar token");
     }
 
-    const googleEvent = await response.json();
+    const data = await response.json();
+    cachedAccessToken = data.access_token;
+    tokenExpiryTime = Date.now() + data.expires_in * 1000;
 
-    if (!event.google_calendar_id && googleEvent.id) {
-      event.google_calendar_id = googleEvent.id;
-      await event.save();
-    }
-
-    return { success: true, googleEventId: googleEvent.id };
-  } catch (error) {
-    return { success: false, reason: "exception", error: error.message };
-  }
+    return cachedAccessToken;
 }
 
-/**
- * Delete an event from Google Calendar
- */
-async function deleteEvent(eventId) {
-  try {
-    if (!GOOGLE_CALENDAR_ACCESS_TOKEN || !GOOGLE_CALENDAR_CALENDAR_ID) {
-      return { success: false, reason: "not_configured" };
+async function addEvent(googleEventPayload) {
+    try {
+        if (!GOOGLE_CALENDAR_CALENDAR_ID) {
+            console.warn("[googleCalendar] Google Calendar not configured");
+            return {success: false, reason: "not_configured"};
+        }
+
+        const accessToken = await getValidAccessToken();
+        const calendarId = encodeURIComponent(GOOGLE_CALENDAR_CALENDAR_ID);
+        const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`;
+
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(googleEventPayload),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            return {success: false, reason: "api_error", status: response.status, error: errorBody};
+        }
+
+        const googleEvent = await response.json();
+        return {success: true, googleEventId: googleEvent.id};
+    } catch (error) {
+        console.error("[googleCalendar] Exception while adding event:", error);
+        return {success: false, reason: "exception", error: error.message};
     }
+}
 
-    const event = await EventObject.findById(eventId);
-    if (!event || !event.google_calendar_id) {
-      return { success: false, reason: "no_google_calendar_id" };
+async function updateEvent(googleEventId, googleEventPayload) {
+    try {
+        if (!GOOGLE_CALENDAR_CALENDAR_ID) {
+            return {success: false, reason: "not_configured"};
+        }
+
+        const accessToken = await getValidAccessToken();
+        const calendarId = encodeURIComponent(GOOGLE_CALENDAR_CALENDAR_ID);
+        const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(
+            googleEventId,
+        )}`;
+
+        const response = await fetch(url, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(googleEventPayload),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            return {success: false, reason: "api_error", status: response.status, error: errorBody};
+        }
+
+        const googleEvent = await response.json();
+        return {success: true, googleEventId: googleEvent.id};
+    } catch (error) {
+        return {success: false, reason: "exception", error: error.message};
     }
+}
 
-    const calendarId = encodeURIComponent(GOOGLE_CALENDAR_CALENDAR_ID);
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(
-      event.google_calendar_id,
-    )}`;
+async function deleteEvent(googleEventId) {
+    try {
+        if (!GOOGLE_CALENDAR_CALENDAR_ID) {
+            return {success: false, reason: "not_configured"};
+        }
 
-    const response = await fetch(url, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${GOOGLE_CALENDAR_ACCESS_TOKEN}`,
-      },
-    });
+        const accessToken = await getValidAccessToken();
+        const calendarId = encodeURIComponent(GOOGLE_CALENDAR_CALENDAR_ID);
+        const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(
+            googleEventId,
+        )}`;
 
-    if (!response.ok && response.status !== 404) {
-      return { success: false, reason: "api_error", status: response.status };
+        const response = await fetch(url, {
+            method: "DELETE",
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+            },
+        });
+
+        if (!response.ok && response.status !== 404) {
+            const errorBody = await response.text();
+            return {success: false, reason: "api_error", status: response.status, error: errorBody};
+        }
+
+        return {success: true};
+    } catch (error) {
+        return {success: false, reason: "exception", error: error.message};
     }
+}
 
-    event.google_calendar_id = null;
-    await event.save();
+async function findEvent(googleEventId) {
+    try {
+        if (!GOOGLE_CALENDAR_CALENDAR_ID) {
+            return {success: false, reason: "not_configured"};
+        }
 
-    console.log(`[googleCalendar] Deleted Google Calendar event ${event.google_calendar_id} for event ${eventId}`);
-    return { success: true };
-  } catch (error) {
-    console.error("[googleCalendar] Error while deleting event", error);
-    return { success: false, reason: "exception", error: error.message };
-  }
+        const accessToken = await getValidAccessToken();
+        const calendarId = encodeURIComponent(GOOGLE_CALENDAR_CALENDAR_ID);
+        const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(
+            googleEventId,
+        )}`;
+
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+            },
+        });
+
+        if (!response.ok) {
+            return {success: false, reason: "api_error", status: response.status};
+        }
+
+        const googleEvent = await response.json();
+        return {success: true, data: googleEvent};
+    } catch (error) {
+        return {success: false, reason: "exception", error: error.message};
+    }
 }
 
 module.exports = {
-  exportEvent,
-  deleteEvent,
+    addEvent,
+    updateEvent,
+    deleteEvent,
+    findEvent,
 };

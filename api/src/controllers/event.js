@@ -3,6 +3,7 @@ const passport = require("passport");
 const router = express.Router();
 
 const EventObject = require("../models/event");
+const VenueObject = require("../models/venue");
 const ERROR_CODES = require("../utils/errorCodes");
 const { capture } = require("../services/sentry");
 
@@ -59,14 +60,15 @@ router.post("/search", async (req, res) => {
         $or: [
           { title: { $regex: searchValue, $options: "i" } },
           { description: { $regex: searchValue, $options: "i" } },
-          { venue: { $regex: searchValue, $options: "i" } },
-          { city: { $regex: searchValue, $options: "i" } },
         ],
       };
     }
 
     if (category) query.category = category;
-    if (city) query.city = { $regex: city, $options: "i" };
+
+    if (city) {
+      query.venue_city = { $regex: city, $options: "i" };
+    }
 
     // 📚 Pagination pattern
     // Frontend sends: { per_page: 10, page: 2 }
@@ -150,10 +152,7 @@ router.post("/", passport.authenticate("user", { session: false }), async (req, 
       description,
       start_date,
       end_date,
-      venue,
-      address,
-      city,
-      country,
+      venue_id,
       capacity,
       price,
       currency,
@@ -166,8 +165,13 @@ router.post("/", passport.authenticate("user", { session: false }), async (req, 
 
     // 📚 Validation: Check required fields
     // 400 = Bad Request (client sent invalid data)
-    if (!title || !start_date) {
-      return res.status(400).send({ ok: false, code: "TITLE_AND_START_DATE_REQUIRED" });
+    if (!title || !start_date || !venue_id) {
+      return res.status(400).send({ ok: false, code: "TITLE_START_DATE_AND_VENUE_REQUIRED" });
+    }
+
+    const venue = await VenueObject.findById(venue_id);
+    if (!venue) {
+      return res.status(404).send({ ok: false, code: "VENUE_NOT_FOUND" });
     }
 
     // 📚 Security: Set organizer from authenticated user
@@ -178,10 +182,11 @@ router.post("/", passport.authenticate("user", { session: false }), async (req, 
       description,
       start_date,
       end_date,
-      venue,
-      address,
-      city,
-      country,
+      venue_id: venue._id,
+      venue_name: venue.name,
+      venue_address: venue.address,
+      venue_city: venue.city,
+      venue_country: venue.country,
       capacity,
       available_spots: capacity || 0, // Initially, all spots are available
       price,
@@ -196,8 +201,7 @@ router.post("/", passport.authenticate("user", { session: false }), async (req, 
       organizer_email: req.user.email, // Denormalized for faster queries
     });
 
-    // 📚 201 = Created (new resource was created successfully)
-    return res.status(201).send({ ok: true, data: event });
+    return res.status(200).send({ ok: true, data: event });
   } catch (error) {
     capture(error);
     res.status(500).send({ ok: false, code: ERROR_CODES.SERVER_ERROR, error });
@@ -237,7 +241,6 @@ router.post("/my-events/search", passport.authenticate(["user", "admin"], { sess
         $or: [
           { title: { $regex: searchValue, $options: "i" } },
           { description: { $regex: searchValue, $options: "i" } },
-          { venue: { $regex: searchValue, $options: "i" } },
         ],
       };
     }
@@ -248,6 +251,7 @@ router.post("/my-events/search", passport.authenticate(["user", "admin"], { sess
     const limit = per_page || 10;
     const offset = page ? (page - 1) * limit : 0;
 
+    // Venue details are stored directly in event (denormalized)
     const data = await EventObject.find(query)
       .skip(offset)
       .limit(limit)
@@ -281,9 +285,6 @@ router.put("/:id", passport.authenticate(["user", "admin"], { session: false }),
     if (!event) return res.status(404).send({ ok: false, code: ERROR_CODES.NOT_FOUND });
 
     // 📚 Security: Ownership check OR admin role
-    // .toString() because MongoDB IDs are ObjectId objects, not strings
-    // 403 = Forbidden (authenticated, but not authorized for THIS resource)
-    // Admins can update any event
     const isOwner = event.organizer_id.toString() === req.user._id.toString();
     const isAdmin = req.user.role === "admin";
 
@@ -291,18 +292,40 @@ router.put("/:id", passport.authenticate(["user", "admin"], { session: false }),
       return res.status(403).send({ ok: false, code: "FORBIDDEN" });
     }
 
-    const updates = req.body;
+    const updates = { ...req.body };
 
-    // 📚 Business logic: Recalculate available spots when capacity changes
-    // If event had 100 capacity, 30 booked (70 available)
-    // And we change capacity to 80
-    // Then available = 80 - 30 = 50
+    const venueIdToCheck = updates.venue_id || event.venue_id;
+    const newCapacity = updates.capacity || event.capacity;
+
+    const shouldValidateCapacity = updates.venue_id || (updates.capacity && updates.capacity !== event.capacity);
+
+    if (shouldValidateCapacity) {
+      const venue = await VenueObject.findById(venueIdToCheck);
+      if (!venue) {
+        return res.status(404).send({ ok: false, code: "VENUE_NOT_FOUND" });
+      }
+
+      if (venue.capacity !== 0 && newCapacity > venue.capacity) {
+        return res.status(400).send({
+          ok: false,
+          code: "CAPACITY_EXCEEDS_VENUE_CAPACITY",
+          message: `Event capacity (${newCapacity}) cannot exceed venue capacity (${venue.capacity})`,
+        });
+      }
+
+      if (updates.venue_id) {
+        updates.venue_name = venue.name;
+        updates.venue_address = venue.address;
+        updates.venue_city = venue.city;
+        updates.venue_country = venue.country;
+      }
+    }
+
     if (updates.capacity && updates.capacity !== event.capacity) {
       const bookedSpots = event.capacity - event.available_spots;
       updates.available_spots = updates.capacity - bookedSpots;
     }
 
-    // 📚 .set() updates the document, .save() persists to DB
     event.set(updates);
     await event.save();
 

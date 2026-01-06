@@ -49,6 +49,11 @@ class api {
         })
 
         const res = await response.json()
+
+        if (response.status !== 200) {
+          return reject(res)
+        }
+
         resolve(res)
       } catch (e) {
         reject(e)

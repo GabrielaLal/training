@@ -6,9 +6,12 @@ import * as Sentry from "@sentry/browser"
 import Auth from "@/scenes/auth"
 import Dashboard from "@/scenes/dashboard"
 import Events from "@/scenes/events"
+import Venues from "@/scenes/venues"
 import Account from "@/scenes/account"
 import EventView from "@/scenes/events/view"
+import VenueView from "@/scenes/venues/view"
 import MyEvents from "@/scenes/my-events"
+import MyVenues from "@/scenes/my-venues"
 import MyRegistrations from "@/scenes/my-registrations"
 
 import Navbar from "@/components/NavBar"
@@ -35,7 +38,10 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/*" element={<Events />} />
           <Route path="/event/:id/*" element={<EventView />} />
+          <Route path="/venues/*" element={<Venues />} />
+          <Route path="/venue/:id/*" element={<VenueView />} />
           <Route path="/my-events" element={<MyEvents />} />
+          <Route path="/my-venues" element={<MyVenues />} />
           <Route path="/my-registrations" element={<MyRegistrations />} />
           <Route path="/account" element={<Account />} />
         </Route>

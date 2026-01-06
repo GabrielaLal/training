@@ -2,12 +2,14 @@ import React, { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { AiOutlineHome, AiOutlineCalendar, AiOutlinePlus, AiOutlineUser } from "react-icons/ai"
 import { HiOutlineTicket } from "react-icons/hi"
+import { MdOutlineLocationOn } from "react-icons/md"
 
 const MENU = [
   { title: "Mastering the API", to: "/dashboard", logo: <AiOutlineHome className="h-5 w-5" /> },
   { title: "Discover Events", to: "/", logo: <AiOutlineCalendar className="h-5 w-5" /> },
   { title: "My Events", to: "/my-events", logo: <AiOutlineCalendar className="h-5 w-5" /> },
-  { title: "My Registrations", to: "/my-registrations", logo: <HiOutlineTicket className="h-5 w-5" /> },
+  { title: "My Venues", to: "/my-venues", logo: <MdOutlineLocationOn className="h-5 w-5" /> },
+  { title: "My Registrations", to: "/my-registrations", logo: <HiOutlineTicket className="h-5 w-5" /> }
 ]
 
 const Navbar = () => {
@@ -41,9 +43,7 @@ const Navbar = () => {
               to={menu.to}
               key={menu.title}
               className={`w-full mb-2 px-3 py-2.5 rounded flex items-center justify-between group transition-all ${
-                selected === index 
-                  ? "bg-gray-900 text-white" 
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                selected === index ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               }`}
               onClick={() => setSelected(index)}
             >
@@ -52,13 +52,7 @@ const Navbar = () => {
                 <span className="text-sm font-medium">{menu.title}</span>
               </div>
               {menu.badge && (
-                <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                  selected === index 
-                    ? "bg-white/20 text-white" 
-                    : "bg-gray-200 text-gray-600"
-                }`}>
-                  {menu.badge}
-                </span>
+                <span className={`text-xs px-2 py-0.5 rounded font-medium ${selected === index ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`}>{menu.badge}</span>
               )}
             </Link>
           ))}

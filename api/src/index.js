@@ -13,9 +13,11 @@ initSentry(app);
 
 if (ENVIRONMENT === "development") {
   // Filter out socket.io requests from logs (not used in this project)
-  app.use(morgan("tiny", {
-    skip: (req, res) => req.url.includes("/socket.io")
-  }));
+  app.use(
+    morgan("tiny", {
+      skip: (req, res) => req.url.includes("/socket.io"),
+    }),
+  );
 }
 
 require("./services/mongo");
@@ -38,6 +40,7 @@ app.use("/user", require("./controllers/user"));
 app.use("/admin", require("./controllers/admin"));
 app.use("/file", require("./controllers/file"));
 app.use("/event", require("./controllers/event"));
+app.use("/venue", require("./controllers/venue"));
 app.use("/attendee", require("./controllers/attendee"));
 app.use("/dummy", require("./controllers/dummy_controller"));
 

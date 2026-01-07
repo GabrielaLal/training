@@ -12,7 +12,7 @@ const Schema = new mongoose.Schema(
     start_date: { type: Date, required: true },
     end_date: { type: Date },
 
-    venue_id: { type: mongoose.Schema.Types.ObjectId, ref: "venue", required: true },
+    venue_id: { type: String, required: true },
     venue_name: { type: String, trim: true },
     venue_address: { type: String, trim: true },
     venue_city: { type: String, trim: true },
@@ -30,7 +30,7 @@ const Schema = new mongoose.Schema(
     status: { type: String, enum: ["draft", "published", "cancelled"], default: "draft" },
 
     // Organizer
-    organizer_id: { type: mongoose.Schema.Types.ObjectId, ref: "user", required: true },
+    organizer_id: { type: String, required: true },
     organizer_name: { type: String },
     organizer_email: { type: String },
 

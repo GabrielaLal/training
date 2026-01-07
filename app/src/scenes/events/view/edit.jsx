@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import api from "@/services/api"
 import toast from "react-hot-toast"
+import { toLocalDateTimeString } from "@/utils/index.js"
 
 export default function EditTab({ event, fetchEvent }) {
   const { id } = useParams()
@@ -44,8 +45,8 @@ export default function EditTab({ event, fetchEvent }) {
       setFormData({
         title: event.title || "",
         description: event.description || "",
-        start_date: event.start_date ? new Date(event.start_date).toISOString().slice(0, 16) : "",
-        end_date: event.end_date ? new Date(event.end_date).toISOString().slice(0, 16) : "",
+        start_date: toLocalDateTimeString(event.start_date),
+        end_date: toLocalDateTimeString(event.end_date),
         venue_id: event.venue_id?._id || event.venue_id || "",
         capacity: event.capacity || 0,
         price: event.price || 0,

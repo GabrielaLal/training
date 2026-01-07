@@ -7,6 +7,8 @@
     "dev": "nodemon ./src/index.js",
     "start": "node ./src/index.js",
     "seed": "node ./src/scripts/seed.js",
+    "cleanup": "node ./src/scripts/cleanupBadEvents.js",
+    "test-reminders": "node src/scripts/manualEventReminders.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -24,6 +26,7 @@
     "moment": "^2.29.4",
     "mongoose": "^7.4.4",
     "morgan": "^1.10.0",
+    "node-cron": "^3.0.3",
     "node-fetch": "^2.6.1",
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.1",

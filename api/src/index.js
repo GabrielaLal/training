@@ -48,6 +48,8 @@ app.use("/webhook", require("./controllers/webhook"));
 setupErrorHandler(app);
 require("./services/passport")(app);
 
+require("./cron/eventReminders").start();
+
 app.listen(PORT, () => {
   console.log(`App listening on port ${PORT}`);
 });

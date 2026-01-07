@@ -43,6 +43,7 @@ app.use("/event", require("./controllers/event"));
 app.use("/venue", require("./controllers/venue"));
 app.use("/attendee", require("./controllers/attendee"));
 app.use("/dummy", require("./controllers/dummy_controller"));
+app.use("/webhook", require("./controllers/webhook"));
 
 setupErrorHandler(app);
 require("./services/passport")(app);

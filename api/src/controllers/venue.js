@@ -81,7 +81,7 @@ router.post("/", passport.authenticate("user", { session: false }), async (req, 
       country,
       capacity: capacity || 0,
       amenities: amenities || [],
-      owner_id: req.user._id,
+      owner_id: req.user._id.toString(),
     });
 
     return res.status(200).send({ ok: true, data: venue });
@@ -100,7 +100,7 @@ router.post("/my-venues/search", passport.authenticate(["user", "admin"], { sess
 
     let query = {};
     if (req.user.role === "user") {
-      query.owner_id = req.user._id;
+      query.owner_id = req.user._id.toString();
     }
 
     if (search) {
@@ -156,16 +156,16 @@ router.put("/:id", passport.authenticate(["user", "admin"], { session: false }),
 
     const now = new Date();
     await EventObject.updateMany(
-      { 
-        venue_id: venue._id,
-        start_date: { $gte: now }
+      {
+        venue_id: venue._id.toString(),
+        start_date: { $gte: now },
       },
       {
         venue_name: venue.name,
         venue_address: venue.address,
         venue_city: venue.city,
         venue_country: venue.country,
-      }
+      },
     );
 
     res.status(200).send({ ok: true, data: venue });

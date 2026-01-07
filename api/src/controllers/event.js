@@ -92,7 +92,7 @@ router.post("/", passport.authenticate("user", { session: false }), async (req, 
       description,
       start_date,
       end_date,
-      venue_id: venue._id,
+      venue_id: venue._id.toString(),
       venue_name: venue.name,
       venue_address: venue.address,
       venue_city: venue.city,
@@ -106,7 +106,7 @@ router.post("/", passport.authenticate("user", { session: false }), async (req, 
       image_url,
       registration_deadline,
       requires_approval,
-      organizer_id: req.user._id,
+      organizer_id: req.user._id.toString(),
       organizer_name: req.user.name,
       organizer_email: req.user.email,
     });
@@ -156,7 +156,7 @@ router.post("/my-events/search", passport.authenticate(["user", "admin"], { sess
 
     let query = {};
     if (req.user.role === "user") {
-      query.organizer_id = req.user._id;
+      query.organizer_id = req.user._id.toString();
     }
 
     if (search) {
@@ -224,6 +224,7 @@ router.put("/:id", passport.authenticate(["user", "admin"], { session: false }),
       }
 
       if (updates.venue_id) {
+        updates.venue_id = updates.venue_id.toString();
         updates.venue_name = venue.name;
         updates.venue_address = venue.address;
         updates.venue_city = venue.city;

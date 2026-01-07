@@ -4,8 +4,8 @@ const MODELNAME = "attendee";
 
 const Schema = new mongoose.Schema(
   {
-    event_id: { type: mongoose.Schema.Types.ObjectId, ref: "event", required: true },
-    user_id: { type: mongoose.Schema.Types.ObjectId, ref: "user", required: true },
+    event_id: { type: String, required: true },
+    user_id: { type: String, required: true },
     
     // Attendee info (cached from user)
     name: { type: String, required: true },
